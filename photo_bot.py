@@ -70,8 +70,8 @@ async def handle_non_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
-    app.add_handler(MessageHandler(filters.PRIVATE & filters.PHOTO, handle_photo))
-    app.add_handler(MessageHandler(filters.PRIVATE & ~filters.PHOTO, handle_non_photo))
+    app.add_handler(MessageHandler(filters.ChatType.PRIVATE & filters.PHOTO, handle_photo))
+   app.add_handler(MessageHandler(filters.ChatType.PRIVATE & ~filters.PHOTO, handle_non_photo))
 
     print("Bot is running...")
     app.run_polling()
