@@ -1,14 +1,13 @@
 """
 Telegram Photo Forwarding Bot
-- Shows area checklist on /start
-- Single photos forwarded immediately
-- Album photos forwarded as an album (grouped)
+- Shows area checklist on /start or any text message
+- Forwards photos to group topic immediately
+- Sends ONE confirmation per album or single photo
 """
 
-import asyncio
 import logging
 from datetime import datetime, timezone, timedelta
-from telegram import Update, InputMediaPhoto
+from telegram import Update
 from telegram.ext import ApplicationBuilder, MessageHandler, CommandHandler, filters, ContextTypes
 
 # ── CONFIG ────────────────────────────────────────────────────────────────────
@@ -38,46 +37,8 @@ INSTRUCTIONS = (
     "📸 You can send photos one by one or all at once as an album."
 )
 
-# Buffer for album photos: {media_group_id: {"photos": [], "user": user, "task": task}}
-_album_buffer = {}
-
-
-async def _flush_album(bot, group_id):
-    """Wait briefly then send all photos in an album group together."""
-    await asyncio.sleep(2)
-
-    data = _album_buffer.pop(group_id, None)
-    if not data:
-        return
-
-    photos = data["photos"]
-    user = data["user"]
-
-    sender_name = user.full_name
-    if user.username:
-        sender_name += f" (@{user.username})"
-
-    now = datetime.now(TZ)
-    timestamp_str = now.strftime("%d %b %Y, %I:%M %p")
-
-    try:
-        for i in range(0, len(photos), 10):
-            batch = photos[i:i + 10]
-            media = []
-            for j, file_id in enumerate(batch):
-                if j == 0 and i == 0:
-                    caption = f"📸 From {sender_name}\n🕐 {timestamp_str}"
-                    media.append(InputMediaPhoto(media=file_id, caption=caption))
-                else:
-                    media.append(InputMediaPhoto(media=file_id))
-
-            await bot.send_media_group(
-                chat_id=TARGET_GROUP_ID,
-                media=media,
-                message_thread_id=TARGET_TOPIC_ID,
-            )
-    except Exception as e:
-        logging.error(f"Failed to send album: {e}")
+# Track which album groups we've already confirmed, to avoid duplicate replies
+_confirmed_groups = set()
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -90,49 +51,41 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     photo = message.photo[-1]
     media_group_id = message.media_group_id
 
-    if media_group_id:
-        # Part of an album — buffer it
-        if media_group_id not in _album_buffer:
-            _album_buffer[media_group_id] = {"photos": [], "user": user, "task": None}
+    sender_name = user.full_name
+    if user.username:
+        sender_name += f" (@{user.username})"
 
-        _album_buffer[media_group_id]["photos"].append(photo.file_id)
+    now = datetime.now(TZ)
+    timestamp_str = now.strftime("%d %b %Y, %I:%M %p")
 
-        # Cancel and reschedule the send task
-        existing_task = _album_buffer[media_group_id]["task"]
-        if existing_task:
-            existing_task.cancel()
+    # Only add caption to single photos or the first photo of an album
+    is_first_of_album = media_group_id and media_group_id not in _confirmed_groups
+    add_caption = (not media_group_id) or is_first_of_album
+    caption = f"📸 From {sender_name}\n🕐 {timestamp_str}" if add_caption else None
 
-        task = asyncio.create_task(_flush_album(context.bot, media_group_id))
-        _album_buffer[media_group_id]["task"] = task
+    try:
+        await context.bot.send_photo(
+            chat_id=TARGET_GROUP_ID,
+            photo=photo.file_id,
+            caption=caption,
+            message_thread_id=TARGET_TOPIC_ID,
+        )
 
-    else:
-        # Single photo — send immediately
-        sender_name = user.full_name
-        if user.username:
-            sender_name += f" (@{user.username})"
-
-        now = datetime.now(TZ)
-        timestamp_str = now.strftime("%d %b %Y, %I:%M %p")
-        caption = f"📸 From {sender_name}\n🕐 {timestamp_str}"
-
-        try:
-            await context.bot.send_photo(
-                chat_id=TARGET_GROUP_ID,
-                photo=photo.file_id,
-                caption=caption,
-                message_thread_id=TARGET_TOPIC_ID,
-            )
+        # Send confirmation — once per album, always for single photos
+        if media_group_id:
+            if media_group_id not in _confirmed_groups:
+                _confirmed_groups.add(media_group_id)
+                await message.reply_text("✅ Your photos have been shared to the group!")
+        else:
             await message.reply_text("✅ Your photo has been shared to the group!")
-        except Exception as e:
-            logging.error(f"Failed to send photo: {e}")
-            await message.reply_text("❌ Something went wrong. Please try again.")
+
+    except Exception as e:
+        logging.error(f"Failed to forward photo: {e}")
+        await message.reply_text("❌ Something went wrong. Please try again.")
 
 
 async def handle_non_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "Please send a photo 📷",
-        parse_mode="Markdown"
-    )
+    await update.message.reply_text(INSTRUCTIONS, parse_mode="Markdown")
 
 
 def main():
