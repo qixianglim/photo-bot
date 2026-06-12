@@ -29,11 +29,12 @@ INSTRUCTIONS = (
     "Please take photos of the following areas and send them here:\n\n"
     "1️⃣ BM Riser\n"
     "2️⃣ Atrium Electrical Riser\n"
-    "3️⃣ BM Store\n"
-    "4️⃣ FM Store\n"
-    "5️⃣ Lift Lobby FM Cabinets _(both bottom cabinets beside glass door)_\n"
-    "6️⃣ Female Toilet Store _(Drums & Keys)_\n"
-    "7️⃣ Male Toilet Store _(Drums & Keys)_\n\n"
+    "3️⃣ Paint Riser\n"
+    "4️⃣ BM Store\n"
+    "5️⃣ FM Store\n"
+    "6️⃣ Lift Lobby FM Cabinets _(both bottom cabinets beside glass door)_\n"
+    "7️⃣ Female Toilet Store _(Drums & Keys)_\n"
+    "8️⃣ Male Toilet Store _(Drums & Keys)_\n\n"
     "📸 You can send photos one by one or all at once as an album."
 )
 
@@ -61,7 +62,13 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Only add caption to single photos or the first photo of an album
     is_first_of_album = media_group_id and media_group_id not in _confirmed_groups
     add_caption = (not media_group_id) or is_first_of_album
-    caption = f"📸 From {sender_name}\n🕐 {timestamp_str}" if add_caption else None
+    user_caption = message.caption or ""
+    if add_caption:
+        caption = f"📸 From {sender_name}\n🕐 {timestamp_str}"
+        if user_caption:
+            caption += f"\n\n{user_caption}"
+    else:
+        caption = user_caption if user_caption else None
 
     try:
         await context.bot.send_photo(
