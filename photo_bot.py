@@ -25,17 +25,25 @@ logging.basicConfig(
 TZ = timezone(timedelta(hours=TIMEZONE_OFFSET))
 
 INSTRUCTIONS = (
-    "👋 *Welcome to the BM Consumables Stock Count Bot!*\n\n"
+    "👋 *Welcome to the BM Consumables Stock Count Bot\!*\n\n"
     "Please take photos of the following areas and send them here:\n\n"
     "1️⃣ BM Riser\n"
     "2️⃣ Atrium Electrical Riser\n"
     "3️⃣ Paint Riser\n"
     "4️⃣ BM Store\n"
     "5️⃣ FM Store\n"
-    "6️⃣ Lift Lobby FM Cabinets _(both bottom cabinets beside glass door)_\n"
-    "7️⃣ Female Toilet Store _(Drums & Keys)_\n"
-    "8️⃣ Male Toilet Store _(Drums & Keys)_\n\n"
-    "📸 You can send photos one by one or all at once as an album."
+    "6️⃣ Lift Lobby FM Cabinets _\(both bottom cabinets beside glass door\)_\n"
+    "7️⃣ Female Toilet Store _\(Drums & Keys\)_\n"
+    "8️⃣ Male Toilet Store _\(Drums & Keys\)_\n\n"
+    "📸 You can send photos one by one or all at once as an album\.\n"
+    "💡 *Make sure photos show the __full shelf or area__ so items can be clearly seen\.*\n\n"
+    "❗ *__Stock Notes__*\n"
+    "If you notice any consumables __running low__ or tools that are __missing__, please add a note in the caption when sending your photos\.\n\n"
+    "_Example:_\n"
+    "• Duct Tape – 5 rolls left\n"
+    "• Red Mop Refill – 1 left\n"
+    "• Mallet – missing from Lift Lobby Tool Box\n\n"
+    "_This helps the team restock and follow up quickly\!_"
 )
 
 # Track which album groups we've already confirmed, to avoid duplicate replies
@@ -43,7 +51,7 @@ _confirmed_groups = set()
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(INSTRUCTIONS, parse_mode="Markdown")
+    await update.message.reply_text(INSTRUCTIONS, parse_mode="MarkdownV2")
 
 
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -92,7 +100,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def handle_non_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(INSTRUCTIONS, parse_mode="Markdown")
+    await update.message.reply_text(INSTRUCTIONS, parse_mode="MarkdownV2")
 
 
 def main():
